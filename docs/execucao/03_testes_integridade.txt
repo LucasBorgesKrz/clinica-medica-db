@@ -1,0 +1,53 @@
+--- Teste 1: FK inexistente (médico com especialidade 99, que não existe)
+INSERT INTO medicos (nome, crm, especialidade_id, valor_consulta)
+VALUES ('Dr. Fantasma', '999999-MA', 99, 300.00);
+psql:database/03_testes_integridade.sql:13: ERROR:  insert or update on table "medicos" violates foreign key constraint "fk_medicos_especialidade"
+DETAIL:  Key (especialidade_id)=(99) is not present in table "especialidades".
+--- Teste 2: FK inexistente (consulta para paciente 500, que não existe)
+INSERT INTO consultas (paciente_id, medico_id, data_hora, valor)
+VALUES (500, 1, '2026-12-10 09:00', 200.00);
+psql:database/03_testes_integridade.sql:17: ERROR:  insert or update on table "consultas" violates foreign key constraint "fk_consultas_paciente"
+DETAIL:  Key (paciente_id)=(500) is not present in table "pacientes".
+--- Teste 3: PK duplicada (especialidade com id 1, que já existe)
+INSERT INTO especialidades (id, nome) VALUES (1, 'Dermatologia');
+psql:database/03_testes_integridade.sql:20: ERROR:  duplicate key value violates unique constraint "pk_especialidades"
+DETAIL:  Key (id)=(1) already exists.
+--- Teste 4: PK composta duplicada (mesmo medicamento 2x na mesma receita)
+INSERT INTO prescricoes (prontuario_id, medicamento_id, dosagem, posologia, duracao_dias)
+VALUES (1, 2, '2 cápsulas', 'de 12 em 12 horas', 5);
+psql:database/03_testes_integridade.sql:24: ERROR:  duplicate key value violates unique constraint "pk_prescricoes"
+DETAIL:  Key (prontuario_id, medicamento_id)=(1, 2) already exists.
+--- Teste 5: excluir registro pai que possui filhos (deixaria consultas órfãs)
+DELETE FROM pacientes WHERE id = 1;
+psql:database/03_testes_integridade.sql:27: ERROR:  update or delete on table "pacientes" violates foreign key constraint "fk_consultas_paciente" on table "consultas"
+DETAIL:  Key (id)=(1) is still referenced from table "consultas".
+--- Teste 6: chave única duplicada (CPF já cadastrado)
+INSERT INTO pacientes (nome, cpf, data_nascimento, telefone)
+VALUES ('Carlos Clone', '12345678901', '1990-01-01', '98999990009');
+psql:database/03_testes_integridade.sql:31: ERROR:  duplicate key value violates unique constraint "uq_pacientes_cpf"
+DETAIL:  Key (cpf)=(12345678901) already exists.
+--- Teste 7: regra de negócio (médico com 2 consultas no mesmo horário)
+INSERT INTO consultas (paciente_id, medico_id, data_hora, valor)
+VALUES (2, 1, '2026-12-01 09:00', 200.00);
+psql:database/03_testes_integridade.sql:35: ERROR:  duplicate key value violates unique constraint "ux_consultas_medico_horario"
+DETAIL:  Key (medico_id, data_hora)=(1, 2026-12-01 09:00:00) already exists.
+--- Teste 8: CHECK (valor de consulta negativo)
+INSERT INTO medicos (nome, crm, especialidade_id, valor_consulta)
+VALUES ('Dr. Desconto', '888888-MA', 1, -50.00);
+psql:database/03_testes_integridade.sql:39: ERROR:  new row for relation "medicos" violates check constraint "ck_medicos_valor_consulta"
+DETAIL:  Failing row contains (5, Dr. Desconto, 888888-MA, 1, -50.00, t).
+--- Conferência: nenhuma linha inválida foi gravada
+SELECT 'especialidades' AS tabela, COUNT(*) FROM especialidades
+UNION ALL SELECT 'pacientes',   COUNT(*) FROM pacientes
+UNION ALL SELECT 'medicos',     COUNT(*) FROM medicos
+UNION ALL SELECT 'consultas',   COUNT(*) FROM consultas
+UNION ALL SELECT 'prescricoes', COUNT(*) FROM prescricoes;
+     tabela     | count 
+----------------+-------
+ especialidades |     3
+ pacientes      |     3
+ medicos        |     3
+ consultas      |     4
+ prescricoes    |     3
+(5 rows)
+

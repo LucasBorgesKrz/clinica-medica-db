@@ -1,0 +1,70 @@
+-- =============================================================
+-- Dados de teste (DML) — executar DEPOIS do init.sql
+--   psql -U postgres -d clinica_medica -f database/02_dados_teste.sql
+--
+-- A ordem dos INSERTs importa: primeiro as tabelas "pai"
+-- (sem FK), depois as tabelas "filhas" que apontam para elas.
+-- =============================================================
+
+-- Tabelas pai --------------------------------------------------
+INSERT INTO especialidades (nome) VALUES
+    ('Clínica Geral'),   -- id 1
+    ('Cardiologia'),     -- id 2
+    ('Pediatria');       -- id 3
+
+INSERT INTO pacientes (nome, cpf, data_nascimento, sexo, telefone, email) VALUES
+    ('Carlos Pereira', '12345678901', '1985-04-12', 'M', '98999990001', 'carlos@email.com'),
+    ('Mariana Costa',  '98765432100', '1992-09-30', 'F', '98999990002', 'mariana@email.com'),
+    ('João Silva',     '11122233344', '2018-01-05', 'M', '98999990003', NULL);
+
+INSERT INTO medicamentos (nome, principio_ativo, apresentacao) VALUES
+    ('Dipirona',     'Dipirona sódica', 'comprimido 500 mg'),   -- id 1
+    ('Amoxicilina',  'Amoxicilina',     'cápsula 500 mg'),      -- id 2
+    ('Losartana',    'Losartana potássica', 'comprimido 50 mg'); -- id 3
+
+-- Tabelas filhas (usam FK) -------------------------------------
+INSERT INTO medicos (nome, crm, especialidade_id, valor_consulta) VALUES
+    ('Dra. Ana Souza',   '123456-MA', 1, 200.00),   -- FK -> Clínica Geral
+    ('Dr. Bruno Lima',   '654321-MA', 2, 350.00),   -- FK -> Cardiologia
+    ('Dra. Paula Reis',  '111222-MA', 3, 250.00);   -- FK -> Pediatria
+
+INSERT INTO consultas (paciente_id, medico_id, data_hora, status, valor) VALUES
+    (1, 1, '2026-12-01 09:00', 'realizada', 200.00),
+    (1, 2, '2026-12-03 14:00', 'agendada',  350.00),
+    (2, 1, '2026-12-01 10:00', 'realizada', 200.00),
+    (3, 3, '2026-12-02 08:30', 'confirmada', 250.00);
+
+INSERT INTO prontuarios (consulta_id, queixa, diagnostico) VALUES
+    (1, 'Febre e dor de garganta há 3 dias', 'Amigdalite bacteriana'),
+    (3, 'Dor de cabeça frequente',           'Cefaleia tensional');
+
+INSERT INTO prescricoes (prontuario_id, medicamento_id, dosagem, posologia, duracao_dias) VALUES
+    (1, 2, '1 cápsula',    'de 8 em 8 horas', 7),   -- Amoxicilina
+    (1, 1, '1 comprimido', 'de 6 em 6 horas se houver febre', 3), -- Dipirona
+    (2, 1, '1 comprimido', 'de 6 em 6 horas se houver dor',   2);
+
+-- Conferência: JOIN entre as tabelas prova que as FKs ligam os dados
+SELECT c.id            AS consulta,
+       p.nome          AS paciente,
+       m.nome          AS medico,
+       e.nome          AS especialidade,
+       c.data_hora,
+       c.status
+FROM consultas c
+JOIN pacientes      p ON p.id = c.paciente_id
+JOIN medicos        m ON m.id = c.medico_id
+JOIN especialidades e ON e.id = m.especialidade_id
+ORDER BY c.data_hora;
+
+SELECT pa.nome  AS paciente,
+       pr.diagnostico,
+       md.nome  AS medicamento,
+       ps.dosagem,
+       ps.posologia,
+       ps.duracao_dias
+FROM prescricoes  ps
+JOIN prontuarios  pr ON pr.id = ps.prontuario_id
+JOIN consultas    c  ON c.id  = pr.consulta_id
+JOIN pacientes    pa ON pa.id = c.paciente_id
+JOIN medicamentos md ON md.id = ps.medicamento_id
+ORDER BY pa.nome, md.nome;

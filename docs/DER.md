@@ -1,13 +1,28 @@
-# Diagrama Entidade-Relacionamento (DER)
+# Diagramas do banco de dados
 
-O diagrama abaixo está em [Mermaid](https://mermaid.js.org/) e é renderizado automaticamente pelo GitHub.
+| Diagrama | Imagem | PDF |
+|---|---|---|
+| MER — Modelo Entidade-Relacionamento (conceitual) | [mer-conceitual.png](mer-conceitual.png) | [mer-conceitual.pdf](mer-conceitual.pdf) |
+| Modelo Lógico Relacional (3FN) | [modelo-logico.png](modelo-logico.png) | [modelo-logico.pdf](modelo-logico.pdf) |
+
+## MER (conceitual)
+
+![MER conceitual](mer-conceitual.png)
+
+## Modelo lógico (tabelas, PK e FK)
+
+![Modelo lógico](modelo-logico.png)
+
+## Versão em Mermaid (renderizada pelo GitHub)
 
 ```mermaid
 erDiagram
     ESPECIALIDADES ||--o{ MEDICOS : "classifica"
-    PACIENTES     ||--o{ CONSULTAS : "agenda"
-    MEDICOS       ||--o{ CONSULTAS : "realiza"
-    CONSULTAS     ||--o| PRONTUARIOS : "gera"
+    PACIENTES      ||--o{ CONSULTAS : "agenda"
+    MEDICOS        ||--o{ CONSULTAS : "realiza"
+    CONSULTAS      ||--o| PRONTUARIOS : "gera"
+    PRONTUARIOS    ||--o{ PRESCRICOES : "contém"
+    MEDICAMENTOS   ||--o{ PRESCRICOES : "aparece em"
 
     ESPECIALIDADES {
         int id PK
@@ -37,7 +52,7 @@ erDiagram
         int medico_id FK
         timestamp data_hora
         int duracao_min
-        varchar status "agendada|confirmada|realizada|cancelada|faltou"
+        varchar status
         numeric valor "CHECK >= 0"
         timestamp criado_em
     }
@@ -46,18 +61,30 @@ erDiagram
         int consulta_id FK, UK
         text queixa
         text diagnostico
-        text prescricao
+        text observacoes
         timestamp registrado_em
+    }
+    MEDICAMENTOS {
+        int id PK
+        varchar nome
+        varchar principio_ativo
+        varchar apresentacao
+    }
+    PRESCRICOES {
+        int prontuario_id PK, FK
+        int medicamento_id PK, FK
+        varchar dosagem
+        varchar posologia
+        int duracao_dias "CHECK > 0"
     }
 ```
 
 ## Cardinalidades
 
-| Relacionamento | Cardinalidade | Leitura |
-|---|---|---|
-| Especialidade → Médico | 1 : N | Uma especialidade tem vários médicos; cada médico tem uma especialidade principal. |
-| Paciente → Consulta | 1 : N | Um paciente pode ter várias consultas; cada consulta é de um paciente. |
-| Médico → Consulta | 1 : N | Um médico atende várias consultas; cada consulta tem um médico. |
-| Consulta → Prontuário | 1 : 0..1 | Uma consulta gera no máximo um registro de prontuário (só quando é realizada). |
-
-> Paciente e Médico têm um relacionamento **N:N** entre si, resolvido pela tabela associativa `consultas`.
+| Relacionamento | Tipo | Cardinalidade (mín, máx) | Leitura |
+|---|---|---|---|
+| Especialidade — *pertence* — Médico | 1:N | (1,1) — (0,N) | Todo médico tem exatamente uma especialidade; uma especialidade pode ter vários médicos (ou nenhum). |
+| Paciente — *agenda* — Consulta | 1:N | (1,1) — (0,N) | Toda consulta é de um paciente; um paciente pode ter várias consultas. |
+| Médico — *realiza* — Consulta | 1:N | (1,1) — (0,N) | Toda consulta tem um médico; um médico atende várias consultas. |
+| Consulta — *gera* — Prontuário | 1:1 | (1,1) — (0,1) | Uma consulta gera no máximo um prontuário (só quando é realizada). |
+| Prontuário — *prescreve* — Medicamento | N:N | (0,N) — (0,N) | Uma receita pode ter vários remédios; um remédio aparece em várias receitas. Vira a tabela `prescricoes`. |
